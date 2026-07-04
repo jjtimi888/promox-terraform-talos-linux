@@ -81,19 +81,29 @@ terraform plan
 terraform apply
 ```
 
-### 3. Retrieve Cluster Credentials
-The cluster kubeconfig and talosconfig are outputted as sensitive values. You can extract them using:
+### 3. Download the Client Configurations and Test
+The cluster kubeconfig and talosconfig are outputted as sensitive values. You can extract and set them up using:
 ```bash
 terraform output -raw kubeconfig > kubeconfig
 terraform output -raw talos_config > talos_config.yaml
+export KUBECONFIG=$(pwd)/kubeconfig
+export TALOSCONFIG=$(pwd)/talos_config.yaml
 ```
+
+If you wish to make this permanent run:
+```bash
+mkdir -p ~/.talos
+cp talos_config.yaml ~/.talos/config
+mkdir -p ~/.kube
+cp kubeconfig ~/.kube/config
+```
+
 > [!WARNING]
 > Keep your `kubeconfig` and `talos_config.yaml` files secure! These files contain administrative access credentials to your cluster and are listed in **[.gitignore](file:///Users/timi/lab-learn/k8s-tf-example/.gitignore)** to prevent accidental exposure.
 
 ### 4. Verify CNI & Hubble Status
 Once deployed, check that Cilium is running and Hubble is active:
 ```bash
-export KUBECONFIG=kubeconfig
 kubectl get pods -n kube-system -l app.kubernetes.io/part-of=cilium
 ```
 
