@@ -55,34 +55,6 @@ resource "helm_release" "flux_operator" {
   depends_on = [kubernetes_namespace_v1.flux_system, helm_release.forgejo]
 }
 
-# 5. Custom Service to expose the Web UI via Cilium LoadBalancer on Static IP
-resource "kubernetes_service_v1" "flux_operator_web_lb" {
-  metadata {
-    name      = "flux-operator-web-lb"
-    namespace = kubernetes_namespace_v1.flux_system.metadata[0].name
-    annotations = {
-      "io.cilium/lb-ipam-ips" = var.flux_web_ip
-    }
-  }
-
-  spec {
-    selector = {
-      "app.kubernetes.io/name"     = "flux-operator"
-      "app.kubernetes.io/instance" = "flux-operator"
-    }
-
-    port {
-      name        = "http-web"
-      port        = 80
-      target_port = 9080
-    }
-
-    type                    = "LoadBalancer"
-    external_traffic_policy = "Cluster"
-  }
-
-  depends_on = [helm_release.flux_operator]
-}
 
 # 6. Pre-create Forgejo Organization, Repository and register Flux Deploy Key
 resource "null_resource" "forgejo_repo_setup" {
@@ -223,7 +195,6 @@ resource "null_resource" "flux_instance" {
   depends_on = [
     helm_release.flux_operator,
     kubernetes_secret_v1.flux_deploy_secret,
-    kubernetes_service_v1.flux_operator_web_lb,
     null_resource.forgejo_repo_setup
   ]
 
@@ -265,33 +236,6 @@ resource "null_resource" "flux_instance" {
       EOF
 
       rm flux_kubeconfig
-    EOT
-
-    environment = {
-      KUBECONFIG_CONTENT = self.triggers.kubeconfig
-    }
-  }
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = <<-EOT
-      echo "$KUBECONFIG_CONTENT" > flux_kubeconfig_destroy
-      export KUBECONFIG=flux_kubeconfig_destroy
-
-      echo "Deleting FluxInstance Custom Resource..."
-      kubectl delete fluxinstance flux -n flux-system --ignore-not-found=true
-
-      echo "Waiting for FluxInstance to be deleted..."
-      kubectl wait --for=delete fluxinstance/flux -n flux-system --timeout=120s || true
-
-      echo "Deleting Flux CRDs to prevent Helm uninstall warnings..."
-      kubectl delete crd \
-        fluxinstances.fluxcd.controlplane.io \
-        fluxreports.fluxcd.controlplane.io \
-        resourcesetinputproviders.fluxcd.controlplane.io \
-        resourcesets.fluxcd.controlplane.io --ignore-not-found=true || true
-
-      rm flux_kubeconfig_destroy
     EOT
 
     environment = {
