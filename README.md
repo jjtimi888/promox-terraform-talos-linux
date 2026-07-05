@@ -2,6 +2,15 @@
 
 This repository contains the Terraform configurations to deploy and bootstrap a high-performance, secure **Talos Linux Kubernetes Cluster** on **Proxmox Virtual Environment (VE)**. It integrates **Cilium CNI** in kube-proxy-free mode, including L2 announcements, LoadBalancer IP pools, and Hubble observability.
 
+> [!NOTE]
+> **This is a Day 0 (Infrastructure Provisioning) project.**
+>
+> | Phase | Scope | Description | Status |
+> |-------|-------|-------------|:------:|
+> | **Day 0** | Infrastructure Provisioning | Creating VMs on Proxmox, bootstrapping Talos cluster, installing Cilium CNI | ✅ This project |
+> | **Day 1** | Application Deployment | GitOps (ArgoCD/Flux), Ingress, monitoring, workload deployment | ❌ Out of scope |
+> | **Day 2** | Ongoing Operations | Upgrades, scaling, backup, alerting, incident response | ❌ Out of scope |
+
 ## 🚀 Key Features
 
 - **Declarative Infrastructure**: Fully managed by Terraform using a local module (`modules/proxmox-talos`) with the `bpg/proxmox` and `siderolabs/talos` providers.

@@ -56,6 +56,9 @@ resource "proxmox_virtual_environment_vm" "talos_control_vm" {
   operating_system {
     type = "l26"
   }
+  lifecycle {
+    ignore_changes = [disk]
+  }
 }
 
 resource "proxmox_virtual_environment_vm" "talos_worker_vm" {
@@ -104,11 +107,15 @@ resource "proxmox_virtual_environment_vm" "talos_worker_vm" {
   operating_system {
     type = "l26"
   }
+  lifecycle {
+    ignore_changes = [disk]
+  }
 }
 
 resource "talos_machine_secrets" "talos_secrets" {
   lifecycle {
-    prevent_destroy = true
+    # For production, it is recommended to set this to true.
+    prevent_destroy = false
   }
 }
 
@@ -156,9 +163,30 @@ resource "talos_machine_bootstrap" "talos_bootstrap" {
   client_configuration = talos_machine_secrets.talos_secrets.client_configuration
 }
 
+# Wait for the cluster to be healthy before exposing kubeconfig.
+# skip_kubernetes_checks = true because nodes won't be Ready until CNI (Cilium) is installed.
+# This still validates etcd health and Talos API responsiveness.
+data "talos_cluster_health" "health" {
+  depends_on = [
+    talos_machine_configuration_apply.talos_control_mc_apply,
+    talos_machine_configuration_apply.talos_worker_mc_apply,
+    talos_machine_bootstrap.talos_bootstrap,
+  ]
+  client_configuration   = talos_machine_secrets.talos_secrets.client_configuration
+  control_plane_nodes    = local.control_node_ips
+  worker_nodes           = local.worker_node_ips
+  endpoints              = local.control_node_ips
+  skip_kubernetes_checks = true
+
+  timeouts = {
+    read = "5m"
+  }
+}
+
 resource "talos_cluster_kubeconfig" "talos_kubeconfig" {
   depends_on = [
-    talos_machine_bootstrap.talos_bootstrap
+    talos_machine_bootstrap.talos_bootstrap,
+    data.talos_cluster_health.health,
   ]
   client_configuration = talos_machine_secrets.talos_secrets.client_configuration
   node                 = local.primary_control_node_ip
