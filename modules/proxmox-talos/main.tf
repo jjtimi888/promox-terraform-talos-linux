@@ -13,7 +13,7 @@ locals {
   )
 }
 
-resource "proxmox_virtual_environment_download_file" "talos_image" {
+resource "proxmox_download_file" "talos_image" {
   for_each     = toset(local.all_proxmox_nodes)
   content_type = "iso"
   datastore_id = var.proxmox_iso_datastore
@@ -42,7 +42,7 @@ resource "proxmox_virtual_environment_vm" "talos_control_vm" {
   }
   disk {
     datastore_id = var.proxmox_image_datastore
-    file_id      = proxmox_virtual_environment_download_file.talos_image[each.value].id
+    file_id      = proxmox_download_file.talos_image[each.value].id
     interface    = "virtio0"
     iothread     = true
     discard      = "on"
@@ -78,7 +78,7 @@ resource "proxmox_virtual_environment_vm" "talos_worker_vm" {
   }
   disk {
     datastore_id = var.proxmox_image_datastore
-    file_id      = proxmox_virtual_environment_download_file.talos_image[each.value].id
+    file_id      = proxmox_download_file.talos_image[each.value].id
     interface    = "virtio0"
     iothread     = true
     discard      = "on"
