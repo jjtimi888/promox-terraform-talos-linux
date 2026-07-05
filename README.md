@@ -4,7 +4,7 @@ This repository contains the Terraform configurations to deploy and bootstrap a 
 
 ## 🚀 Key Features
 
-- **Declarative Infrastructure**: Fully managed by Terraform using the modern `bpg/proxmox` and `siderolabs/talos` providers.
+- **Declarative Infrastructure**: Fully managed by Terraform using a local module (`modules/proxmox-talos`) with the `bpg/proxmox` and `siderolabs/talos` providers.
 - **Talos Linux**: Security-hardened, minimal, immutable, and ephemeral Kubernetes node OS.
 - **Cilium CNI (Kube-Proxy Replacement)**: High-performance routing, network policies, and load balancing powered by eBPF.
 - **L2 Announcements & IP Pools**: Built-in bare-metal/homelab LoadBalancer support, allowing services to acquire IPs from a local pool (`192.168.100.200 - 192.168.100.240`).
@@ -15,7 +15,8 @@ This repository contains the Terraform configurations to deploy and bootstrap a 
 
 ## 📂 Project Structure
 
-- **[main.tf](file:///Users/timi/lab-learn/k8s-tf-example/main.tf)**: Provisions VM instances on Proxmox, generates Talos configurations, and bootstraps the cluster.
+- **[main.tf](file:///Users/timi/lab-learn/k8s-tf-example/main.tf)**: Root configuration — calls the local `proxmox-talos` module to provision VMs and bootstrap the cluster.
+- **[modules/proxmox-talos/](file:///Users/timi/lab-learn/k8s-tf-example/modules/proxmox-talos)**: Local module containing the core logic for provisioning Talos VMs on Proxmox, generating machine configs, and bootstrapping.
 - **[cilium.tf](file:///Users/timi/lab-learn/k8s-tf-example/cilium.tf)**: Installs the Cilium Helm chart, configures L2 announcement policies, LoadBalancer IP pools, and cleans up legacy networking.
 - **[.gitignore](file:///Users/timi/lab-learn/k8s-tf-example/.gitignore)**: Prevents checking in sensitive credentials, kubeconfig, and Talos configs.
 
@@ -38,6 +39,7 @@ In **[main.tf](file:///Users/timi/lab-learn/k8s-tf-example/main.tf)**, you can m
 
 ```hcl
 module "talos" {
+    source  = "./modules/proxmox-talos"
     # ...
     control_nodes = {
         "talos-control" = "pve"

@@ -145,6 +145,26 @@ variable "talos_arch" {
 variable "control_nodes" {
   description = "Map of talos control node names to proxmox node names"
   type        = map(string)
+
+  validation {
+    condition     = length(var.control_nodes) > 0
+    error_message = "control_nodes must contain at least one control node."
+  }
+}
+
+variable "primary_control_node_name" {
+  description = "Control node name to use for Talos bootstrap and kubeconfig retrieval. Required when more than one control node is defined."
+  type        = string
+  default     = null
+
+  validation {
+    condition = (
+      var.primary_control_node_name == null
+      ? length(var.control_nodes) == 1
+      : contains(keys(var.control_nodes), var.primary_control_node_name)
+    )
+    error_message = "primary_control_node_name must be set to one of the keys in control_nodes when more than one control node is configured."
+  }
 }
 
 variable "worker_nodes" {

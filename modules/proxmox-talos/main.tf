@@ -1,11 +1,12 @@
 # Copyright (c) Timi
 
 locals {
-  all_proxmox_nodes       = distinct(concat(values(var.control_nodes), values(var.worker_nodes)))
-  primary_control_node_ip = proxmox_virtual_environment_vm.talos_control_vm[keys(var.control_nodes)[0]].ipv4_addresses[var.network_interface_index][0]
-  control_node_ips        = [for vm in keys(var.control_nodes) : proxmox_virtual_environment_vm.talos_control_vm[vm].ipv4_addresses[var.network_interface_index][0]]
-  worker_node_ips         = [for vm in keys(var.worker_nodes) : proxmox_virtual_environment_vm.talos_worker_vm[vm].ipv4_addresses[var.network_interface_index][0]]
-  cluster_endpoint        = coalesce(var.cluster_endpoint, local.primary_control_node_ip)
+  all_proxmox_nodes         = distinct(concat(values(var.control_nodes), values(var.worker_nodes)))
+  primary_control_node_name = var.primary_control_node_name != null ? var.primary_control_node_name : one(keys(var.control_nodes))
+  primary_control_node_ip   = proxmox_virtual_environment_vm.talos_control_vm[local.primary_control_node_name].ipv4_addresses[var.network_interface_index][0]
+  control_node_ips          = [for vm in keys(var.control_nodes) : proxmox_virtual_environment_vm.talos_control_vm[vm].ipv4_addresses[var.network_interface_index][0]]
+  worker_node_ips           = [for vm in keys(var.worker_nodes) : proxmox_virtual_environment_vm.talos_worker_vm[vm].ipv4_addresses[var.network_interface_index][0]]
+  cluster_endpoint          = coalesce(var.cluster_endpoint, local.primary_control_node_ip)
   node_ips = concat(
     local.control_node_ips,
     local.worker_node_ips
@@ -148,7 +149,7 @@ resource "talos_machine_configuration_apply" "talos_worker_mc_apply" {
   config_patches              = var.worker_machine_config_patches
 }
 
-# You only need to bootstrap 1 control node, we pick the first one
+# You only need to bootstrap 1 control node, so use the configured primary.
 resource "talos_machine_bootstrap" "talos_bootstrap" {
   depends_on           = [talos_machine_configuration_apply.talos_control_mc_apply]
   node                 = local.primary_control_node_ip

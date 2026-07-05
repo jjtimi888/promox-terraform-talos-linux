@@ -1,3 +1,5 @@
+# Copyright (c) Timi
+
 locals {
   kubeconfig = yamldecode(module.talos.kubeconfig)
   cluster    = local.kubeconfig.clusters[0].cluster
@@ -12,7 +14,7 @@ provider "kubernetes" {
 }
 
 provider "helm" {
-  kubernetes {
+  kubernetes = {
     host                   = local.cluster.server
     client_certificate     = base64decode(local.user.client-certificate-data)
     client_key             = base64decode(local.user.client-key-data)
@@ -32,7 +34,7 @@ resource "helm_release" "cilium" {
   name       = "cilium"
   repository = "https://helm.cilium.io/"
   chart      = "cilium"
-  version    = "1.19.5"
+  version    = var.cilium_version
   namespace  = "kube-system"
 
   values = [
@@ -67,18 +69,12 @@ resource "helm_release" "cilium" {
           - SYS_ADMIN
           - SYS_RESOURCE
 
-    bpf:
-      hostLegacyRouting: true
-
     hubble:
       enabled: true
-      relay:
-        enabled: true
-      ui:
-        enabled: true
 
     l2announcements:
       enabled: true
+
     EOT
   ]
 }
@@ -92,7 +88,7 @@ resource "kubectl_manifest" "cilium_l2_announcement_policy" {
       namespace: kube-system
     spec:
       interfaces:
-        - eth0
+        - ^e.*
       externalIPs: true
       loadBalancerIPs: true
   YAML
@@ -101,38 +97,14 @@ resource "kubectl_manifest" "cilium_l2_announcement_policy" {
 
 resource "kubectl_manifest" "cilium_lb_ip_pool" {
   yaml_body = <<-YAML
-    apiVersion: cilium.io/v2alpha1
+    apiVersion: cilium.io/v2
     kind: CiliumLoadBalancerIPPool
     metadata:
       name: default-lb-pool
-      namespace: kube-system
     spec:
-      cidrs:
-        - 192.168.100.200-192.168.100.240
+      blocks:
+        - start: "${var.lb_pool_start}"
+          stop: "${var.lb_pool_stop}"
   YAML
   depends_on = [helm_release.cilium]
 }
-
-resource "terraform_data" "clean_default_cni_and_proxy" {
-  input = module.talos.kubeconfig
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo "$KUBECONFIG_CONTENT" > kubeconfig_temp
-      export KUBECONFIG=kubeconfig_temp
-      trap "rm -f kubeconfig_temp" EXIT
-      kubectl delete daemonset kube-flannel -n kube-system --ignore-not-found
-      kubectl delete configmap kube-flannel-cfg -n kube-system --ignore-not-found
-      kubectl delete serviceaccount flannel -n kube-system --ignore-not-found
-      kubectl delete clusterrole flannel --ignore-not-found
-      kubectl delete clusterrolebinding flannel --ignore-not-found
-      kubectl delete daemonset kube-proxy -n kube-system --ignore-not-found
-    EOT
-    environment = {
-      KUBECONFIG_CONTENT = self.input
-    }
-  }
-
-  depends_on = [helm_release.cilium]
-}
-
