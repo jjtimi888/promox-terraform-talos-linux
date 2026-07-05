@@ -105,7 +105,7 @@ resource "helm_release" "cilium" {
 }
 
 resource "kubectl_manifest" "cilium_l2_announcement_policy" {
-  yaml_body = <<-YAML
+  yaml_body  = <<-YAML
     apiVersion: cilium.io/v2alpha1
     kind: CiliumL2AnnouncementPolicy
     metadata:
@@ -121,7 +121,7 @@ resource "kubectl_manifest" "cilium_l2_announcement_policy" {
 }
 
 resource "kubectl_manifest" "cilium_lb_ip_pool" {
-  yaml_body = <<-YAML
+  yaml_body  = <<-YAML
     apiVersion: cilium.io/v2
     kind: CiliumLoadBalancerIPPool
     metadata:

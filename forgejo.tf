@@ -101,26 +101,3 @@ resource "null_resource" "wait_for_forgejo" {
   }
 }
 
-# Automatically initialize homelab organization
-resource "null_resource" "forgejo_org_setup" {
-  depends_on = [null_resource.wait_for_forgejo]
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo "$KUBECONFIG_CONTENT" > forgejo_kubeconfig
-      export KUBECONFIG=forgejo_kubeconfig
-
-      pod_name=$(kubectl get pods -n forgejo -l app=forgejo -o jsonpath='{.items[0].metadata.name}')
-      echo "Using Forgejo pod: $pod_name"
-
-      # Execute CLI inside the pod container to create organization
-      kubectl exec -n forgejo $pod_name -c forgejo -- gitea admin org create --name "${var.forgejo_org}" || echo "Organization '${var.forgejo_org}' already exists or failed to create"
-
-      rm forgejo_kubeconfig
-    EOT
-
-    environment = {
-      KUBECONFIG_CONTENT = module.talos.kubeconfig
-    }
-  }
-}

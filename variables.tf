@@ -221,3 +221,13 @@ variable "forgejo_org" {
   default     = "homelab"
 }
 
+# =============================================================================
+# Flux
+# =============================================================================
+variable "flux_web_ip" {
+  description = "Static IP address to bind to the Flux Operator Web UI service via Cilium LoadBalancer"
+  type        = string
+  default     = "192.168.100.202"
+}
+
+

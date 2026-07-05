@@ -40,3 +40,18 @@ output "forgejo_url" {
   value       = "http://${var.forgejo_ip}:3000/"
 }
 
+# -----------------------------------------------------------------------------
+# GitOps Outputs
+# -----------------------------------------------------------------------------
+
+output "gitops_repo_url" {
+  description = "The HTTP URL to access the GitOps fleet repository on Forgejo"
+  value       = "http://${var.forgejo_ip}:3000/${var.forgejo_org}/gitops-fleet"
+}
+
+output "flux_web_url" {
+  description = "The HTTP URL to access the Flux Operator Web UI"
+  value       = "http://${var.flux_web_ip}/"
+}
+
+

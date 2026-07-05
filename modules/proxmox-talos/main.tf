@@ -3,9 +3,9 @@
 locals {
   all_proxmox_nodes         = distinct(concat(values(var.control_nodes), values(var.worker_nodes)))
   primary_control_node_name = var.primary_control_node_name != null ? var.primary_control_node_name : one(keys(var.control_nodes))
-  primary_control_node_ip   = proxmox_virtual_environment_vm.talos_control_vm[local.primary_control_node_name].ipv4_addresses[var.network_interface_index][0]
-  control_node_ips          = [for vm in keys(var.control_nodes) : proxmox_virtual_environment_vm.talos_control_vm[vm].ipv4_addresses[var.network_interface_index][0]]
-  worker_node_ips           = [for vm in keys(var.worker_nodes) : proxmox_virtual_environment_vm.talos_worker_vm[vm].ipv4_addresses[var.network_interface_index][0]]
+  primary_control_node_ip   = [for ip in flatten(proxmox_virtual_environment_vm.talos_control_vm[local.primary_control_node_name].ipv4_addresses) : ip if ip != "127.0.0.1" && !startswith(ip, "169.254.")][0]
+  control_node_ips          = [for vm in keys(var.control_nodes) : [for ip in flatten(proxmox_virtual_environment_vm.talos_control_vm[vm].ipv4_addresses) : ip if ip != "127.0.0.1" && !startswith(ip, "169.254.")][0]]
+  worker_node_ips           = [for vm in keys(var.worker_nodes) : [for ip in flatten(proxmox_virtual_environment_vm.talos_worker_vm[vm].ipv4_addresses) : ip if ip != "127.0.0.1" && !startswith(ip, "169.254.")][0]]
   cluster_endpoint          = coalesce(var.cluster_endpoint, local.primary_control_node_ip)
   node_ips = concat(
     local.control_node_ips,
@@ -33,6 +33,9 @@ resource "proxmox_virtual_environment_vm" "talos_control_vm" {
   started   = true
   agent {
     enabled = true
+    wait_for_ip {
+      ipv4 = true
+    }
   }
   cpu {
     cores = var.proxmox_control_vm_cores
@@ -72,6 +75,9 @@ resource "proxmox_virtual_environment_vm" "talos_worker_vm" {
   started   = true
   agent {
     enabled = true
+    wait_for_ip {
+      ipv4 = true
+    }
   }
   cpu {
     cores = var.proxmox_worker_vm_cores
@@ -146,7 +152,7 @@ resource "talos_machine_configuration_apply" "talos_control_mc_apply" {
   for_each                    = var.control_nodes
   client_configuration        = talos_machine_secrets.talos_secrets.client_configuration
   machine_configuration_input = data.talos_machine_configuration.control_mc.machine_configuration
-  node                        = proxmox_virtual_environment_vm.talos_control_vm[each.key].ipv4_addresses[var.network_interface_index][0]
+  node                        = [for ip in flatten(proxmox_virtual_environment_vm.talos_control_vm[each.key].ipv4_addresses) : ip if ip != "127.0.0.1" && !startswith(ip, "169.254.")][0]
   config_patches = concat(var.control_machine_config_patches, [
     yamlencode({
       apiVersion = "v1alpha1"
@@ -161,7 +167,7 @@ resource "talos_machine_configuration_apply" "talos_worker_mc_apply" {
   for_each                    = var.worker_nodes
   client_configuration        = talos_machine_secrets.talos_secrets.client_configuration
   machine_configuration_input = data.talos_machine_configuration.worker_mc.machine_configuration
-  node                        = proxmox_virtual_environment_vm.talos_worker_vm[each.key].ipv4_addresses[var.network_interface_index][0]
+  node                        = [for ip in flatten(proxmox_virtual_environment_vm.talos_worker_vm[each.key].ipv4_addresses) : ip if ip != "127.0.0.1" && !startswith(ip, "169.254.")][0]
   config_patches = concat(var.worker_machine_config_patches, [
     yamlencode({
       apiVersion = "v1alpha1"
