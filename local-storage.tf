@@ -29,7 +29,7 @@ resource "helm_release" "local_path_provisioner" {
     nodePathMap:
       - node: DEFAULT_PATH_FOR_NON_LISTED_NODES
         paths:
-          - /var/mnt/local-path-provisioner
+          - /var/local-path-provisioner
     configmap:
       name: local-path-config
       helperPod:

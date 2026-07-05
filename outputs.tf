@@ -30,3 +30,13 @@ output "all_node_ips" {
   description = "List of all node IPs (control + workers)"
   value       = module.talos.all_node_ips
 }
+
+# -----------------------------------------------------------------------------
+# Forgejo Outputs
+# -----------------------------------------------------------------------------
+
+output "forgejo_url" {
+  description = "The HTTP URL to access the Forgejo web interface"
+  value       = "http://${var.forgejo_ip}:3000/"
+}
+

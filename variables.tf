@@ -124,6 +124,9 @@ variable "control_machine_config_patches" {
     machine:
       install:
         disk: "/dev/vda"
+      kubelet:
+        extraArgs:
+          rotate-server-certificates: true
     cluster:
       network:
         cni:
@@ -142,6 +145,9 @@ variable "worker_machine_config_patches" {
     machine:
       install:
         disk: "/dev/vda"
+      kubelet:
+        extraArgs:
+          rotate-server-certificates: true
     cluster:
       network:
         cni:
@@ -173,3 +179,45 @@ variable "lb_pool_stop" {
   type        = string
   default     = "192.168.100.240"
 }
+
+# -----------------------------------------------------------------------------
+# Forgejo Configuration
+# -----------------------------------------------------------------------------
+
+variable "forgejo_admin_user" {
+  description = "Administrator username for Forgejo"
+  type        = string
+  default     = "git-admin"
+}
+
+variable "forgejo_admin_password" {
+  description = "Administrator password for Forgejo"
+  type        = string
+  default     = "admin@6868"
+  sensitive   = true
+}
+
+variable "forgejo_admin_email" {
+  description = "Administrator email for Forgejo"
+  type        = string
+  default     = "git-admin@admin.com"
+}
+
+variable "forgejo_ip" {
+  description = "Static IP address to bind to the Forgejo service via Cilium LoadBalancer"
+  type        = string
+  default     = "192.168.100.201"
+}
+
+variable "forgejo_pin_node" {
+  description = "The worker node name to pin the Forgejo pod on"
+  type        = string
+  default     = "talos-worker-01"
+}
+
+variable "forgejo_org" {
+  description = "Organization name to create on startup"
+  type        = string
+  default     = "homelab"
+}
+
