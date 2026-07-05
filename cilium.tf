@@ -6,6 +6,30 @@ locals {
   user       = local.kubeconfig.users[0].user
 }
 
+# Wait for the Kubernetes API server to become reachable after bootstrap.
+# The talos_cluster_health check uses skip_kubernetes_checks = true,
+# so it doesn't verify API server TCP connectivity.
+# This actively polls instead of blindly sleeping.
+resource "null_resource" "wait_for_k8s_api" {
+  depends_on = [module.talos]
+
+  provisioner "local-exec" {
+    command     = <<-EOT
+      for i in $(seq 1 30); do
+        if curl -sk --connect-timeout 2 ${local.cluster.server}/version > /dev/null 2>&1; then
+          echo "K8s API is ready"
+          exit 0
+        fi
+        echo "Waiting for K8s API... attempt $i/30"
+        sleep 5
+      done
+      echo "K8s API not reachable after 150s"
+      exit 1
+    EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+}
+
 provider "kubernetes" {
   host                   = local.cluster.server
   client_certificate     = base64decode(local.user.client-certificate-data)
@@ -31,6 +55,7 @@ provider "kubectl" {
 }
 
 resource "helm_release" "cilium" {
+  depends_on = [null_resource.wait_for_k8s_api]
   name       = "cilium"
   repository = "https://helm.cilium.io/"
   chart      = "cilium"
