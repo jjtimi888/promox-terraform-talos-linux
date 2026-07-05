@@ -32,7 +32,7 @@ resource "helm_release" "cilium" {
   name       = "cilium"
   repository = "https://helm.cilium.io/"
   chart      = "cilium"
-  version    = "1.16.5"
+  version    = "1.19.5"
   namespace  = "kube-system"
 
   values = [
