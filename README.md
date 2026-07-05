@@ -19,6 +19,7 @@ This repository contains the Terraform configurations to deploy and bootstrap a 
 - **L2 Announcements & IP Pools**: Built-in bare-metal/homelab LoadBalancer support, allowing services to acquire IPs from a local pool (`192.168.100.200 - 192.168.100.240`).
 - **Hubble Observability**: Real-time network visibility and flow logging with Hubble UI and Relay.
 - **Automated CNI Cleanup**: Custom provisioner to purge default flannel components and `kube-proxy`.
+- **Local Path Provisioner**: Configures dynamic hostPath-based Persistent Volume provisioning utilizing `/var/mnt/local-path-provisioner` across nodes as the default StorageClass, deployed using a local Helm chart.
 
 ---
 
@@ -27,6 +28,7 @@ This repository contains the Terraform configurations to deploy and bootstrap a 
 - **[main.tf](file:///Users/timi/lab-learn/k8s-tf-example/main.tf)**: Root configuration — calls the local `proxmox-talos` module to provision VMs and bootstrap the cluster.
 - **[modules/proxmox-talos/](file:///Users/timi/lab-learn/k8s-tf-example/modules/proxmox-talos)**: Local module containing the core logic for provisioning Talos VMs on Proxmox, generating machine configs, and bootstrapping.
 - **[cilium.tf](file:///Users/timi/lab-learn/k8s-tf-example/cilium.tf)**: Installs the Cilium Helm chart, configures L2 announcement policies, LoadBalancer IP pools, and cleans up legacy networking.
+- **[local-storage.tf](file:///Users/timi/lab-learn/k8s-tf-example/local-storage.tf)**: Deploys Rancher Local Path Provisioner using a Helm release pointing to a local chart in **[charts/local-path-provisioner](file:///Users/timi/lab-learn/k8s-tf-example/charts/local-path-provisioner)**, configuring dynamic local storage provisioning (Persistent Volumes) and setting `local-path` as the default StorageClass.
 - **[.gitignore](file:///Users/timi/lab-learn/k8s-tf-example/.gitignore)**: Prevents checking in sensitive credentials, kubeconfig, and Talos configs.
 
 ---
@@ -74,6 +76,13 @@ spec:
   cidrs:
     - 192.168.100.200-192.168.100.240
 ```
+
+### Local Path Storage
+The local path provisioner is configured in **[local-storage.tf](file:///Users/timi/lab-learn/k8s-tf-example/local-storage.tf)** to dynamically provision volumes using node-local directories:
+- **Deployment Method**: Deployed as a Helm release (`helm_release.local_path_provisioner`) pointing to the local chart at **[charts/local-path-provisioner](file:///Users/timi/lab-learn/k8s-tf-example/charts/local-path-provisioner)**.
+- **Default Storage Path**: `/var/mnt/local-path-provisioner` on each cluster node (customized in the Helm release values, as `/var` is the persistent and writable directory on Talos Linux).
+- **StorageClass Name**: `local-path` (automatically created and set as the default StorageClass).
+- **Volume Binding Mode**: `WaitForFirstConsumer` to ensure pods are scheduled on the node before their volume is provisioned.
 
 ---
 

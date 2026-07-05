@@ -133,3 +133,42 @@ resource "kubectl_manifest" "cilium_lb_ip_pool" {
   YAML
   depends_on = [helm_release.cilium]
 }
+
+resource "null_resource" "wait_for_k8s_nodes" {
+  depends_on = [
+    helm_release.cilium,
+    kubectl_manifest.cilium_l2_announcement_policy,
+    kubectl_manifest.cilium_lb_ip_pool
+  ]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "$KUBECONFIG_CONTENT" > temp_kubeconfig
+      export KUBECONFIG=temp_kubeconfig
+      for i in {1..30}; do
+        nodes_output=$(kubectl get nodes --no-headers 2>&1)
+        status=$?
+        if [ $status -eq 0 ] && [ ! -z "$nodes_output" ]; then
+          if echo "$nodes_output" | grep -q "NotReady"; then
+            echo "Some nodes are not ready yet..."
+          else
+            echo "All nodes are Ready!"
+            rm temp_kubeconfig
+            exit 0
+          fi
+        else
+          echo "K8s API not fully stable yet: $nodes_output"
+        fi
+        sleep 5
+      done
+      echo "Timeout waiting for nodes to be Ready"
+      rm temp_kubeconfig
+      exit 1
+    EOT
+
+    environment = {
+      KUBECONFIG_CONTENT = module.talos.kubeconfig
+    }
+  }
+}
+

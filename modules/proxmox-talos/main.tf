@@ -14,12 +14,14 @@ locals {
 }
 
 resource "proxmox_download_file" "talos_image" {
-  for_each     = toset(local.all_proxmox_nodes)
-  content_type = "iso"
-  datastore_id = var.proxmox_iso_datastore
-  node_name    = each.value
-  url          = "https://factory.talos.dev/image/${var.talos_schematic_id}/v${var.talos_version}/metal-${var.talos_arch}.qcow2"
-  file_name    = "${var.talos_cluster_name}-talos_linux-${var.talos_schematic_id}-${var.talos_version}-${var.talos_arch}.img"
+  for_each            = toset(local.all_proxmox_nodes)
+  content_type        = "iso"
+  datastore_id        = var.proxmox_iso_datastore
+  node_name           = each.value
+  url                 = "https://factory.talos.dev/image/${var.talos_schematic_id}/v${var.talos_version}/metal-${var.talos_arch}.qcow2"
+  file_name           = "${var.talos_cluster_name}-talos_linux-${var.talos_schematic_id}-${var.talos_version}-${var.talos_arch}.img"
+  overwrite           = true
+  overwrite_unmanaged = true
 }
 
 resource "proxmox_virtual_environment_vm" "talos_control_vm" {
@@ -145,7 +147,14 @@ resource "talos_machine_configuration_apply" "talos_control_mc_apply" {
   client_configuration        = talos_machine_secrets.talos_secrets.client_configuration
   machine_configuration_input = data.talos_machine_configuration.control_mc.machine_configuration
   node                        = proxmox_virtual_environment_vm.talos_control_vm[each.key].ipv4_addresses[var.network_interface_index][0]
-  config_patches              = var.control_machine_config_patches
+  config_patches = concat(var.control_machine_config_patches, [
+    yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "HostnameConfig"
+      hostname   = each.key
+      auto       = "off"
+    })
+  ])
 }
 
 resource "talos_machine_configuration_apply" "talos_worker_mc_apply" {
@@ -153,7 +162,14 @@ resource "talos_machine_configuration_apply" "talos_worker_mc_apply" {
   client_configuration        = talos_machine_secrets.talos_secrets.client_configuration
   machine_configuration_input = data.talos_machine_configuration.worker_mc.machine_configuration
   node                        = proxmox_virtual_environment_vm.talos_worker_vm[each.key].ipv4_addresses[var.network_interface_index][0]
-  config_patches              = var.worker_machine_config_patches
+  config_patches = concat(var.worker_machine_config_patches, [
+    yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "HostnameConfig"
+      hostname   = each.key
+      auto       = "off"
+    })
+  ])
 }
 
 # You only need to bootstrap 1 control node, so use the configured primary.
