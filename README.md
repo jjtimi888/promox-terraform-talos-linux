@@ -1,133 +1,141 @@
-# Talos Kubernetes Cluster on Proxmox VE with Cilium CNI
+# Proxmox VE Talos Kubernetes Cluster with GitOps (Flux CD & Forgejo)
 
-This repository contains the Terraform configurations to deploy and bootstrap a high-performance, secure **Talos Linux Kubernetes Cluster** on **Proxmox Virtual Environment (VE)**. It integrates **Cilium CNI** in kube-proxy-free mode, including L2 announcements, LoadBalancer IP pools, and Hubble observability.
+This repository contains the Terraform configurations to deploy, bootstrap, and manage a secure, production-grade **Talos Linux Kubernetes Cluster** on **Proxmox Virtual Environment (VE)**. It integrates eBPF-powered **Cilium CNI**, local dynamic persistent storage, cluster monitoring, a local Git server (**Forgejo**), and git-based reconciliation (**Flux CD**) for fully automated GitOps.
 
 > [!NOTE]
-> **This is a Day 0 (Infrastructure Provisioning) project.**
+> **Project Scope: Day 0 to Day 1 GitOps Bootstrap**
 >
 > | Phase | Scope | Description | Status |
 > |-------|-------|-------------|:------:|
-> | **Day 0** | Infrastructure Provisioning | Creating VMs on Proxmox, bootstrapping Talos cluster, installing Cilium CNI | ✅ This project |
-> | **Day 1** | Application Deployment | GitOps (ArgoCD/Flux), Ingress, monitoring, workload deployment | ❌ Out of scope |
-> | **Day 2** | Ongoing Operations | Upgrades, scaling, backup, alerting, incident response | ❌ Out of scope |
+> | **Day 0** | Infrastructure & CNI | Provision VMs on Proxmox, bootstrap Talos Linux, install Cilium (kube-proxy-free) and Local Path storage | ✅ Built-in |
+> | **Day 1** | GitOps & Core Apps | Pre-deploy Forgejo (Git server), Metrics Server, and Flux Operator to bootstrap GitOps reconciliation | ✅ Built-in |
+> | **Day 2+** | App Workloads | Deploy workloads, ingress controllers, databases, etc. declaratively via the GitOps repo | 🔄 Managed via GitOps |
+
+---
 
 ## 🚀 Key Features
 
-- **Declarative Infrastructure**: Fully managed by Terraform using a local module (`modules/proxmox-talos`) with the `bpg/proxmox` and `siderolabs/talos` providers.
-- **Talos Linux**: Security-hardened, minimal, immutable, and ephemeral Kubernetes node OS.
-- **Cilium CNI (Kube-Proxy Replacement)**: High-performance routing, network policies, and load balancing powered by eBPF.
-- **L2 Announcements & IP Pools**: Built-in bare-metal/homelab LoadBalancer support, allowing services to acquire IPs from a local pool (`192.168.100.200 - 192.168.100.240`).
+- **Declarative Infrastructure**: Fully managed by Terraform using the `bpg/proxmox` and `siderolabs/talos` providers.
+- **Talos Linux Node OS**: Security-hardened, minimal, immutable, and ephemeral Kubernetes node OS.
+- **Cilium CNI (Kube-Proxy Replacement)**: High-performance routing, eBPF-based load balancing, L2 Announcements, and LoadBalancer IP pools (`192.168.100.200 - 192.168.100.240`).
 - **Hubble Observability**: Real-time network visibility and flow logging with Hubble UI and Relay.
-- **Automated CNI Cleanup**: Custom provisioner to purge default flannel components and `kube-proxy`.
-- **Local Path Provisioner**: Configures dynamic hostPath-based Persistent Volume provisioning utilizing `/var/mnt/local-path-provisioner` across nodes as the default StorageClass, deployed using a local Helm chart.
+- **Dynamic Local Storage**: Rancher Local Path Provisioner configured at `/var/local-path-provisioner` (the persistent path on Talos Linux) as the default `local-path` StorageClass.
+- **Private Git Server (Forgejo)**: Deployed automatically on a static LoadBalancer IP (`192.168.100.201:3000`). Auto-configures an admin account, creates the `homelab` organization, and sets up a private `gitops-fleet` repository.
+- **Automated GitOps (Flux CD)**: Installs the ControlPlane Flux Operator, generates ED25519 deploy keys, registers them with Forgejo, automatically fetches SSH host keys for mutual trust, and configures the `FluxInstance` to sync the cluster state from the `gitops-fleet` repo.
+- **Flux Web UI**: Exposed via a static LoadBalancer IP (`192.168.100.202`) to monitor sync status.
+- **Cluster Monitoring**: Metrics Server pre-installed along with [kubelet-serving-cert-approver](file:///Users/timi/lab-learn/k8s-tf-example/manifests/kubelet-serving-cert-approver.yaml) to automatically approve node Kubelet certificates on Talos.
 
 ---
 
 ## 📂 Project Structure
 
-- **[main.tf](file:///Users/timi/lab-learn/k8s-tf-example/main.tf)**: Root configuration — calls the local `proxmox-talos` module to provision VMs and bootstrap the cluster.
-- **[modules/proxmox-talos/](file:///Users/timi/lab-learn/k8s-tf-example/modules/proxmox-talos)**: Local module containing the core logic for provisioning Talos VMs on Proxmox, generating machine configs, and bootstrapping.
-- **[cilium.tf](file:///Users/timi/lab-learn/k8s-tf-example/cilium.tf)**: Installs the Cilium Helm chart, configures L2 announcement policies, LoadBalancer IP pools, and cleans up legacy networking.
-- **[local-storage.tf](file:///Users/timi/lab-learn/k8s-tf-example/local-storage.tf)**: Deploys Rancher Local Path Provisioner using a Helm release pointing to a local chart in **[charts/local-path-provisioner](file:///Users/timi/lab-learn/k8s-tf-example/charts/local-path-provisioner)**, configuring dynamic local storage provisioning (Persistent Volumes) and setting `local-path` as the default StorageClass.
-- **[.gitignore](file:///Users/timi/lab-learn/k8s-tf-example/.gitignore)**: Prevents checking in sensitive credentials, kubeconfig, and Talos configs.
+- **[main.tf](file:///Users/timi/lab-learn/k8s-tf-example/main.tf)**: Call to the local `modules/proxmox-talos` module to provision Proxmox VMs and initialize the Talos cluster.
+- **[cilium.tf](file:///Users/timi/lab-learn/k8s-tf-example/cilium.tf)**: Installs the Cilium Helm chart, configures L2 announcement policies, LoadBalancer IP pools, and purges flannel/kube-proxy.
+- **[local-storage.tf](file:///Users/timi/lab-learn/k8s-tf-example/local-storage.tf)**: Deploys Rancher Local Path Provisioner using the local Helm chart in `charts/local-path-provisioner`.
+- **[forgejo.tf](file:///Users/timi/lab-learn/k8s-tf-example/forgejo.tf)**: Provisions Forgejo Git Server, database persistence, and exposes it via LoadBalancer.
+- **[flux.tf](file:///Users/timi/lab-learn/k8s-tf-example/flux.tf)**: Provisions Flux CD, sets up SSH deploy keys and known hosts, initializes the repo structure in Forgejo, and bootstraps the `FluxInstance` CR.
+- **[metrics-server.tf](file:///Users/timi/lab-learn/k8s-tf-example/metrics-server.tf)**: Installs Metrics Server and `kubelet-serving-cert-approver` for node/pod resource usage statistics.
+- **[outputs.tf](file:///Users/timi/lab-learn/k8s-tf-example/outputs.tf)**: Returns endpoints, node IPs, and configuration files.
+- **[variables.tf](file:///Users/timi/lab-learn/k8s-tf-example/variables.tf)** & **[terraform.tfvars](file:///Users/timi/lab-learn/k8s-tf-example/terraform.tfvars)**: Customizable parameters (VM size, node IPs, passwords, etc.).
+- **[scripts/](file:///Users/timi/lab-learn/k8s-tf-example/scripts)**:
+  - **[set-config.sh](file:///Users/timi/lab-learn/k8s-tf-example/scripts/set-config.sh)**: Automates fetching `kubeconfig`/`talos_config` and writing them to standard paths.
+  - **[remove-tf.sh](file:///Users/timi/lab-learn/k8s-tf-example/scripts/remove-tf.sh)**: Helper to clean up local Terraform state files and cache (for developers).
 
 ---
 
 ## 🛠️ Prerequisites
 
-Before you begin, ensure you have:
-1. A running **Proxmox VE** instance (configured at `https://192.168.100.252:8006/` or customized).
-2. The **Talos Linux ISO/Image** uploaded to your Proxmox storage.
-3. The **Terraform CLI** installed locally.
-4. Access to your Proxmox API token/credentials (configured via environment variables or provider block).
+1. A running **Proxmox VE** instance (configured at `https://192.168.100.252:8006/` or customized in `terraform.tfvars`).
+2. **Talos Linux OS image** uploaded to Proxmox.
+3. **Terraform CLI**, **kubectl**, and **talosctl** installed locally.
+4. Credentials configured via environment variables (`PROXMOX_VE_USERNAME`, `PROXMOX_VE_PASSWORD`).
 
 ---
 
-## ⚙️ Configuration & Customization
+## ⚡ Deployment & Setup Guide
 
-### VM Configuration
-In **[main.tf](file:///Users/timi/lab-learn/k8s-tf-example/main.tf)**, you can modify VM resource sizes, IP allocations, and node structure:
-
-```hcl
-module "talos" {
-    source  = "./modules/proxmox-talos"
-    # ...
-    control_nodes = {
-        "talos-control" = "pve"
-    }
-    worker_nodes = {
-        "talos-worker-01" = "pve"
-        "talos-worker-02" = "pve"
-        "talos-worker-03" = "pve"
-    }
-    # Customize VM cores and memory
-    proxmox_control_vm_cores  = 2
-    proxmox_control_vm_memory = 6144
-    proxmox_worker_vm_cores   = 1
-    proxmox_worker_vm_memory  = 2048
-}
-```
-
-### Cilium LoadBalancer IP Pool
-You can change the range of IP addresses assigned to LoadBalancer services in **[cilium.tf](file:///Users/timi/lab-learn/k8s-tf-example/cilium.tf)**:
-
-```yaml
-spec:
-  cidrs:
-    - 192.168.100.200-192.168.100.240
-```
-
-### Local Path Storage
-The local path provisioner is configured in **[local-storage.tf](file:///Users/timi/lab-learn/k8s-tf-example/local-storage.tf)** to dynamically provision volumes using node-local directories:
-- **Deployment Method**: Deployed as a Helm release (`helm_release.local_path_provisioner`) pointing to the local chart at **[charts/local-path-provisioner](file:///Users/timi/lab-learn/k8s-tf-example/charts/local-path-provisioner)**.
-- **Default Storage Path**: `/var/mnt/local-path-provisioner` on each cluster node (customized in the Helm release values, as `/var` is the persistent and writable directory on Talos Linux).
-- **StorageClass Name**: `local-path` (automatically created and set as the default StorageClass).
-- **Volume Binding Mode**: `WaitForFirstConsumer` to ensure pods are scheduled on the node before their volume is provisioned.
-
----
-
-## ⚡ Deployment Guide
-
-### 1. Initialize Terraform
-Install the necessary providers and modules:
+### 1. Initialize and Apply Terraform
+Initialize the working directory and apply the configuration to spin up the cluster and install all bootstrap applications:
 ```bash
 terraform init
-```
-
-### 2. Plan and Apply
-Review the execution plan and deploy the VMs:
-```bash
-terraform plan
 terraform apply
 ```
 
-### 3. Download the Client Configurations and Test
-The cluster kubeconfig and talosconfig are outputted as sensitive values. You can extract and set them up using:
+### 2. Configure Local Clients (kubeconfig & talosconfig)
+Run the helper script to generate the configuration files and copy them to standard directories (`~/.kube/config` and `~/.talos/config`):
 ```bash
-terraform output -raw kubeconfig > kubeconfig
-terraform output -raw talos_config > talos_config.yaml
-export KUBECONFIG=$(pwd)/kubeconfig
-export TALOSCONFIG=$(pwd)/talos_config.yaml
+./scripts/set-config.sh
 ```
 
-If you wish to make this permanent run:
+You can now test access to the cluster:
 ```bash
-mkdir -p ~/.talos
-cp talos_config.yaml ~/.talos/config
-mkdir -p ~/.kube
-cp kubeconfig ~/.kube/config
+kubectl get nodes -o wide
+talosctl containers -n <control-plane-ip>
 ```
 
-> [!WARNING]
-> Keep your `kubeconfig` and `talos_config.yaml` files secure! These files contain administrative access credentials to your cluster and are listed in **[.gitignore](file:///Users/timi/lab-learn/k8s-tf-example/.gitignore)** to prevent accidental exposure.
-
-### 4. Verify CNI & Hubble Status
-Once deployed, check that Cilium is running and Hubble is active:
+### 3. Verify Deployed Services
+Check the statuses of the core services and their corresponding pods:
 ```bash
-kubectl get pods -n kube-system -l app.kubernetes.io/part-of=cilium
+# Verify Cilium & storage
+kubectl get pods -n kube-system
+kubectl get sc
+
+# Verify Forgejo
+kubectl get pods -n forgejo
+
+# Verify Flux
+kubectl get pods -n flux-system
 ```
 
 ---
 
-## 🧹 Post-Deployment Cleanups
-The configuration includes a resource that automatically handles removing the legacy CNI elements (e.g., `kube-flannel` and `kube-proxy`) from the cluster to prevent interference with Cilium's eBPF features. See `terraform_data.clean_default_cni_and_proxy` in **[cilium.tf](file:///Users/timi/lab-learn/k8s-tf-example/cilium.tf)**.
+## 🔗 Service Endpoints & Access
+
+Once deployment completes, the following services are available:
+
+| Service | Protocol/URL | Default Credentials / Settings |
+|---------|--------------|--------------------------------|
+| **Forgejo Git Server** | [http://192.168.100.201:3000/](http://192.168.100.201:3000/) | Username: `git-admin` / Password: `admin@6868` |
+| **GitOps Repository** | [http://192.168.100.201:3000/homelab/gitops-fleet](http://192.168.100.201:3000/homelab/gitops-fleet) | Pre-populated with `./clusters/talos-cluster/kustomization.yaml` |
+| **Flux Operator Web UI** | [http://192.168.100.202/](http://192.168.100.202/) | Access via web browser to inspect GitOps sync state |
+
+---
+
+## 🔄 Day 1 GitOps Reconciliation Flow
+
+After the Day 0 Terraform apply completes, the cluster is automatically configured with a self-healing reconciliation loop:
+
+```mermaid
+graph TD
+    A[Local Developer] -->|git push| B(Forgejo Repository: gitops-fleet)
+    B -->|SSH sync| C[Flux Source Controller]
+    C -->|Reconcile Manifests| D[Flux Kustomize Controller]
+    D -->|Apply Changes| E[Kubernetes Cluster API]
+    E -->|Pod/Service/PVC| F[Running Resources]
+    
+    subgraph GitOps Loop
+        C
+        D
+    end
+```
+
+To deploy new applications or modify cluster settings:
+1. Clone the GitOps fleet repository:
+   ```bash
+   git clone http://192.168.100.201:3000/homelab/gitops-fleet.git
+   ```
+2. Place your Kubernetes manifests or Helm releases in the repository.
+3. Reference them in the `kustomization.yaml` under `./clusters/talos-cluster/`.
+4. Commit and push your changes. Flux will apply them within minutes automatically.
+
+---
+
+## 🧹 Tear Down & Reset
+To fully destroy the Kubernetes cluster and delete all resources from Proxmox:
+```bash
+terraform destroy
+```
+If you wish to do a clean reset of the local Terraform states, run:
+```bash
+./scripts/remove-tf.sh -y
+```
