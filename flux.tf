@@ -41,6 +41,16 @@ resource "helm_release" "flux_operator" {
   namespace        = kubernetes_namespace_v1.flux_system.metadata[0].name
   create_namespace = false
 
+  values = [
+    <<-EOT
+    nodeSelector:
+      kubernetes.io/hostname: "${var.forgejo_pin_node}"
+    web:
+      networkPolicy:
+        create: false
+    EOT
+  ]
+
   # Ensure namespace and Forgejo service are available
   depends_on = [kubernetes_namespace_v1.flux_system, helm_release.forgejo]
 }
@@ -64,10 +74,11 @@ resource "kubernetes_service_v1" "flux_operator_web_lb" {
     port {
       name        = "http-web"
       port        = 80
-      target_port = "http-web" # Port 9080 inside container
+      target_port = 9080
     }
 
-    type = "LoadBalancer"
+    type                    = "LoadBalancer"
+    external_traffic_policy = "Cluster"
   }
 
   depends_on = [helm_release.flux_operator]
@@ -82,6 +93,7 @@ resource "null_resource" "forgejo_repo_setup" {
 
   provisioner "local-exec" {
     command = <<-EOT
+      set -eo pipefail
       echo "$KUBECONFIG_CONTENT" > forgejo_kubeconfig
       export KUBECONFIG=forgejo_kubeconfig
 
@@ -119,7 +131,7 @@ resource "null_resource" "forgejo_repo_setup" {
       org_status=$(curl -s -o /dev/null -w "%%{http_code}" -H "Authorization: token $token" "http://${var.forgejo_ip}:3000/api/v1/orgs/${var.forgejo_org}")
       if [ "$org_status" -ne 200 ]; then
         echo "Organization '${var.forgejo_org}' does not exist. Creating..."
-        curl -s -X POST -H "Authorization: token $token" -H "Content-Type: application/json" \
+        curl -f -s -X POST -H "Authorization: token $token" -H "Content-Type: application/json" \
           -d '{"username": "${var.forgejo_org}"}' \
           "http://${var.forgejo_ip}:3000/api/v1/orgs"
       else
@@ -130,7 +142,7 @@ resource "null_resource" "forgejo_repo_setup" {
       http_status=$(curl -s -o /dev/null -w "%%{http_code}" -H "Authorization: token $token" "http://${var.forgejo_ip}:3000/api/v1/repos/${var.forgejo_org}/gitops-fleet")
       if [ "$http_status" -ne 200 ]; then
         echo "Repository gitops-fleet does not exist. Creating..."
-        curl -s -X POST -H "Authorization: token $token" -H "Content-Type: application/json" \
+        curl -f -s -X POST -H "Authorization: token $token" -H "Content-Type: application/json" \
           -d '{"name": "gitops-fleet", "private": true, "auto_init": true}' \
           "http://${var.forgejo_ip}:3000/api/v1/orgs/${var.forgejo_org}/repos"
       else
@@ -143,15 +155,28 @@ resource "null_resource" "forgejo_repo_setup" {
         echo "Deploy key flux-deploy-key already exists in repository."
       else
         echo "Adding deploy key to repository..."
-        curl -s -X POST -H "Authorization: token $token" -H "Content-Type: application/json" \
+        curl -f -s -X POST -H "Authorization: token $token" -H "Content-Type: application/json" \
           -d '{"title": "flux-deploy-key", "key": "'"$DEPLOY_KEY"'", "read_only": true}' \
           "http://${var.forgejo_ip}:3000/api/v1/repos/${var.forgejo_org}/gitops-fleet/keys"
       fi
 
-      # 5. Clean up access token to avoid SQLite database token pollution
+      # 5. Initialize clusters/${var.talos_cluster_name}/kustomization.yaml if it does not exist
+      kust_status=$(curl -s -o /dev/null -w "%%{http_code}" -H "Authorization: token $token" \
+        "http://${var.forgejo_ip}:3000/api/v1/repos/${var.forgejo_org}/gitops-fleet/contents/clusters/${var.talos_cluster_name}/kustomization.yaml")
+      if [ "$kust_status" -ne 200 ]; then
+        echo "Initializing kustomization.yaml..."
+        kust_content="YXBpVmVyc2lvbjoga3VzdG9taXplLmNvbmZpZy5rOHMuaW8vdjFiZXRhMQpraW5kOiBLdXN0b21pemF0aW9uCnJlc291cmNlczogW10="
+        curl -f -s -X POST -H "Authorization: token $token" -H "Content-Type: application/json" \
+          -d '{"content": "'"$kust_content"'", "message": "Initialize clusters/'"${var.talos_cluster_name}"' directory", "branch": "main"}' \
+          "http://${var.forgejo_ip}:3000/api/v1/repos/${var.forgejo_org}/gitops-fleet/contents/clusters/${var.talos_cluster_name}/kustomization.yaml"
+      else
+        echo "kustomization.yaml already exists."
+      fi
+
+      # 6. Clean up access token to avoid SQLite database token pollution
       curl -s -X DELETE -H "Authorization: token $token" "http://${var.forgejo_ip}:3000/api/v1/users/${var.forgejo_admin_user}/tokens/$token_name" || true
 
-      # 6. Fetch Forgejo SSH host key dynamically and patch flux-system secret
+      # 7. Fetch Forgejo SSH host key dynamically and patch flux-system secret
       host_key=""
       for i in {1..15}; do
         if kubectl exec -n forgejo $pod_name -c forgejo -- ls /data/ssh/gitea.rsa.pub &>/dev/null; then
@@ -187,7 +212,7 @@ forgejo-ssh.forgejo.svc.cluster.local $key_type $key_val"
 
     environment = {
       KUBECONFIG_CONTENT = module.talos.kubeconfig
-      DEPLOY_KEY         = tls_private_key.flux_deploy_key.public_key_openssh
+      DEPLOY_KEY         = trimspace(tls_private_key.flux_deploy_key.public_key_openssh)
     }
   }
 }

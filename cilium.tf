@@ -112,6 +112,9 @@ resource "kubectl_manifest" "cilium_l2_announcement_policy" {
       name: default-l2-policy
       namespace: kube-system
     spec:
+      nodeSelector:
+        matchLabels:
+          kubernetes.io/hostname: "${var.forgejo_pin_node}"
       interfaces:
         - ^e.*
       externalIPs: true
