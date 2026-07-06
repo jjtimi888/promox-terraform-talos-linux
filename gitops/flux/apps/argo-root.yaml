@@ -11,8 +11,6 @@ spec:
     repoURL: 'https://github.com/jjtimi888/promox-terraform-talos-linux.git'
     targetRevision: main
     path: gitops/argo/apps
-    directory:
-      recurse: true
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: argocd
