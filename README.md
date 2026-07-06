@@ -31,8 +31,8 @@ This repository contains the Terraform and GitOps configurations to deploy, boot
 ### Infrastructure-as-Code (Terraform)
 All infrastructure-as-code files are located under the [iac/terraform/proxmox/](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox) directory:
 - **[main.tf](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/main.tf)**: Call to the local `modules/proxmox-talos` module to provision Proxmox VMs and initialize the Talos cluster.
-- **[cilium.tf](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/cilium.tf)**: Bootstraps initial Cilium Helm release, default L2 announcement policies, and LoadBalancer IP pools on Day 0 (configured to ignore subsequent changes to allow GitOps lifecycle management).
-- **[flux.tf](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/flux.tf)**: Provisions the ControlPlane Flux Operator and bootstraps the `FluxInstance` CR pointing to the GitHub GitOps repository.
+- **[bootstrap-cilium.tf](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/bootstrap-cilium.tf)**: Bootstraps initial Cilium Helm release, default L2 announcement policies, and LoadBalancer IP pools on Day 0 (configured to ignore subsequent changes to allow GitOps lifecycle management).
+- **[bootstrap-flux.tf](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/bootstrap-flux.tf)**: Provisions the ControlPlane Flux Operator and bootstraps the `FluxInstance` CR pointing to the GitHub GitOps repository.
 - **[outputs.tf](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/outputs.tf)**: Returns endpoints, node IPs, and configuration files.
 - **[variables.tf](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/variables.tf)** & **[terraform.tfvars](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/terraform.tfvars)**: Customizable parameters (VM size, node IPs, GitHub owner/repo, etc.).
 - **[scripts/](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/scripts)**:
