@@ -4,5 +4,7 @@ resources:
   - ./cilium
   - ./local-path-provisioner
   - ./metrics-server
+  - ./argo-cd
+
 
 
