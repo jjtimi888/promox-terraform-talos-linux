@@ -38,3 +38,5 @@ talosconfig
 
 # Temp files
 *kube_config*
+*kubeconfig*
+
