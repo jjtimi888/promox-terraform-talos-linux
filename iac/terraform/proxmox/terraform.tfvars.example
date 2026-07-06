@@ -58,11 +58,8 @@ lb_pool_start  = "192.168.100.200"
 lb_pool_stop   = "192.168.100.240"
 
 # =============================================================================
-# Forgejo
+# GitHub
 # =============================================================================
-forgejo_admin_user     = "git-admin"
-forgejo_admin_password = "admin@6868"
-forgejo_admin_email    = "git-admin@admin.com"
-forgejo_ip             = "192.168.100.201"
-forgejo_pin_node       = "talos-worker-01"
-forgejo_org            = "homelab"
+github_owner        = "jjtimi888"
+github_repository   = "promox-terraform-talos-linux"
+primary_worker_node = "talos-worker-01"

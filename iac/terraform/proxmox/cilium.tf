@@ -114,7 +114,7 @@ resource "kubectl_manifest" "cilium_l2_announcement_policy" {
     spec:
       nodeSelector:
         matchLabels:
-          kubernetes.io/hostname: "${var.forgejo_pin_node}"
+          kubernetes.io/hostname: "${var.primary_worker_node}"
       interfaces:
         - ^e.*
       externalIPs: true
