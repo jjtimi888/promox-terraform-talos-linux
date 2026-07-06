@@ -4,4 +4,5 @@ resources:
   - flux-instance.yaml
   - flux-operator.yaml
   - flux-operator-web-lb.yaml
+  - helm-repositories.yaml
 

@@ -12,7 +12,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: argo-cd
-        namespace: argocd
+        namespace: flux-system
   install:
     remediation:
       retries: 3
