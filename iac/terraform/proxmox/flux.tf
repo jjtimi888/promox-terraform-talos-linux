@@ -18,16 +18,9 @@ resource "helm_release" "flux_operator" {
   namespace        = kubernetes_namespace_v1.flux_system.metadata[0].name
   create_namespace = false
 
-  values = [
-    <<-EOT
-    nodeSelector:
-      kubernetes.io/hostname: "${var.primary_worker_node}"
-    web:
-      enabled: true
-      networkPolicy:
-        create: false
-    EOT
-  ]
+  lifecycle {
+    ignore_changes = [values]
+  }
 
   # Ensure namespace is available
   depends_on = [kubernetes_namespace_v1.flux_system]
@@ -41,7 +34,8 @@ resource "null_resource" "flux_instance" {
   ]
 
   triggers = {
-    kubeconfig = module.talos.kubeconfig
+    kubeconfig    = module.talos.kubeconfig
+    manifest_sha1 = sha1(file("${path.module}/../../../gitops/homelab/clusters/homelab-cluster/flux-system/flux-instance.yaml"))
   }
 
   provisioner "local-exec" {
@@ -49,32 +43,8 @@ resource "null_resource" "flux_instance" {
       echo "$KUBECONFIG_CONTENT" > flux_kubeconfig
       export KUBECONFIG=flux_kubeconfig
 
-      echo "Applying FluxInstance Custom Resource..."
-      cat <<'EOF' | kubectl apply -f -
-      apiVersion: fluxcd.controlplane.io/v1
-      kind: FluxInstance
-      metadata:
-        name: flux
-        namespace: flux-system
-      spec:
-        distribution:
-          version: "2.x"
-          registry: "ghcr.io/fluxcd"
-        components:
-          - source-controller
-          - kustomize-controller
-          - helm-controller
-          - notification-controller
-        cluster:
-          type: kubernetes
-          multitenant: false
-          networkPolicy: false
-        sync:
-          kind: GitRepository
-          url: "https://github.com/${var.github_owner}/${var.github_repository}.git"
-          ref: "refs/heads/main"
-          path: "./gitops/homelab/clusters/homelab-cluster"
-      EOF
+      echo "Applying FluxInstance Custom Resource from GitOps manifests..."
+      kubectl apply -f ${path.module}/../../../gitops/homelab/clusters/homelab-cluster/flux-system/flux-instance.yaml
 
       rm flux_kubeconfig
     EOT
@@ -84,21 +54,5 @@ resource "null_resource" "flux_instance" {
     }
   }
 
-  provisioner "local-exec" {
-    when    = destroy
-    command = <<-EOT
-      echo "$KUBECONFIG_CONTENT" > flux_destroy_kubeconfig
-      export KUBECONFIG=flux_destroy_kubeconfig
-
-      echo "Deleting FluxInstance Custom Resource..."
-      kubectl delete fluxinstance flux -n flux-system --ignore-not-found=true --timeout=90s || true
-
-      rm flux_destroy_kubeconfig
-    EOT
-
-    environment = {
-      KUBECONFIG_CONTENT = self.triggers.kubeconfig
-    }
-  }
 }
 

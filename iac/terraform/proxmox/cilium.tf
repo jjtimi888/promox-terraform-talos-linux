@@ -102,6 +102,13 @@ resource "helm_release" "cilium" {
 
     EOT
   ]
+
+  lifecycle {
+    ignore_changes = [
+      version,
+      values,
+    ]
+  }
 }
 
 resource "kubectl_manifest" "cilium_l2_announcement_policy" {
@@ -121,6 +128,12 @@ resource "kubectl_manifest" "cilium_l2_announcement_policy" {
       loadBalancerIPs: true
   YAML
   depends_on = [helm_release.cilium]
+
+  lifecycle {
+    ignore_changes = [
+      yaml_body,
+    ]
+  }
 }
 
 resource "kubectl_manifest" "cilium_lb_ip_pool" {
@@ -135,6 +148,12 @@ resource "kubectl_manifest" "cilium_lb_ip_pool" {
           stop: "${var.lb_pool_stop}"
   YAML
   depends_on = [helm_release.cilium]
+
+  lifecycle {
+    ignore_changes = [
+      yaml_body,
+    ]
+  }
 }
 
 resource "null_resource" "wait_for_k8s_nodes" {

@@ -1,23 +1,21 @@
-# Copyright (c) Timi
-
-resource "kubernetes_namespace_v1" "local_path_storage" {
-  depends_on = [null_resource.wait_for_k8s_nodes]
-
-  metadata {
-    name = "local-path-storage"
-    labels = {
-      "pod-security.kubernetes.io/enforce" = "privileged"
-    }
-  }
-}
-
-resource "helm_release" "local_path_provisioner" {
-  name      = "local-path-provisioner"
-  chart     = "./charts/local-path-provisioner"
-  namespace = kubernetes_namespace_v1.local_path_storage.metadata[0].name
-
-  values = [
-    <<-EOT
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: local-path-provisioner
+  namespace: local-path-storage
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: ./gitops/homelab/infrastructure/local-path-provisioner/charts/local-path-provisioner
+      sourceRef:
+        kind: GitRepository
+        name: flux-system
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  values:
     image:
       repository: docker.io/rancher/local-path-provisioner
       tag: v0.0.36
@@ -37,6 +35,3 @@ resource "helm_release" "local_path_provisioner" {
           - key: node.kubernetes.io/disk-pressure
             operator: Exists
             effect: NoSchedule
-    EOT
-  ]
-}

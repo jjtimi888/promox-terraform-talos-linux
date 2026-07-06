@@ -1,28 +1,28 @@
 # Proxmox VE Talos Kubernetes Cluster with GitOps (Flux CD & GitHub)
 
-This repository contains the Terraform configurations to deploy, bootstrap, and manage a secure, production-grade **Talos Linux Kubernetes Cluster** on **Proxmox Virtual Environment (VE)**. It integrates eBPF-powered **Cilium CNI**, local dynamic persistent storage, cluster monitoring, and git-based reconciliation (**Flux CD**) using a **GitHub repository** for fully automated GitOps.
+This repository contains the Terraform and GitOps configurations to deploy, bootstrap, and manage a secure, production-grade **Talos Linux Kubernetes Cluster** on **Proxmox Virtual Environment (VE)**. It integrates eBPF-powered **Cilium CNI**, local dynamic persistent storage, cluster monitoring, and git-based reconciliation (**Flux CD**) using a **GitHub repository** for fully automated GitOps.
 
 > [!NOTE]
 > **Project Scope: Day 0 to Day 1 GitOps Bootstrap**
 >
 > | Phase | Scope | Description | Status |
 > |-------|-------|-------------|:------:|
-> | **Day 0** | Infrastructure & CNI | Provision VMs on Proxmox, bootstrap Talos Linux, install Cilium (kube-proxy-free) and Local Path storage | ✅ Built-in |
-> | **Day 1** | GitOps & Core Apps | Pre-deploy Metrics Server and Flux Operator to bootstrap GitOps reconciliation | ✅ Built-in |
+> | **Day 0** | Infrastructure & CNI Bootstrap | Provision VMs on Proxmox, bootstrap Talos Linux, and install initial bootstrapping Cilium (kube-proxy-free) | ✅ Built-in |
+> | **Day 1** | GitOps & Core Infrastructure | Bootstrapping GitOps via Flux Operator, then reconcile core infra (Cilium updates, Local Path storage, Metrics Server, and Flux Web UI) using GitOps | ✅ Built-in |
 > | **Day 2+** | App Workloads | Deploy workloads, ingress controllers, databases, etc. declaratively via the GitOps repo | 🔄 Managed via GitOps |
 
 ---
 
 ## 🚀 Key Features
 
-- **Declarative Infrastructure**: Fully managed by Terraform using the `bpg/proxmox` and `siderolabs/talos` providers.
-- **Talos Linux Node OS**: Security-hardened, minimal, immutable, and ephemeral Kubernetes node OS.
-- **Cilium CNI (Kube-Proxy Replacement)**: High-performance routing, eBPF-based load balancing, L2 Announcements, and LoadBalancer IP pools (`192.168.100.200 - 192.168.100.240`).
-- **Hubble Observability**: Real-time network visibility and flow logging with Hubble UI and Relay.
-- **Dynamic Local Storage**: Rancher Local Path Provisioner configured at `/var/local-path-provisioner` (the persistent path on Talos Linux) as the default `local-path` StorageClass.
-- **Automated GitOps (Flux CD)**: Installs the ControlPlane Flux Operator and applies the `FluxInstance` to sync the cluster state directly from a GitHub repository via HTTPS sync.
-- **Flux Web UI**: Exposed via a static LoadBalancer IP (`192.168.100.202`) to monitor sync status.
-- **Cluster Monitoring**: Metrics Server pre-installed along with [kubelet-serving-cert-approver.yaml](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/manifests/kubelet-serving-cert-approver.yaml) to automatically approve node Kubelet certificates on Talos.
+- **Declarative Infrastructure (Day 0)**: VM provisioning on Proxmox and Talos cluster bootstrap fully managed by Terraform using the `bpg/proxmox` and `siderolabs/talos` providers.
+- **Talos Linux Node OS (Day 0)**: Security-hardened, minimal, immutable, and ephemeral Kubernetes node OS.
+- **Cilium CNI (Day 0 / Day 1)**: Bootstrapped initially via Terraform (Day 0) to provide essential cluster networking, and subsequently updated and managed (including L2 Announcements and LoadBalancer IP pools `192.168.100.200 - 192.168.100.240`) via GitOps (Day 1).
+- **Hubble Observability (Day 1)**: Real-time network visibility and flow logging with Hubble UI and Relay, managed via the Cilium Helm Release in GitOps.
+- **Dynamic Local Storage (Day 1)**: Rancher Local Path Provisioner deployed via GitOps and configured at `/var/local-path-provisioner` (the persistent path on Talos Linux) as the default `local-path` StorageClass.
+- **Automated GitOps (Day 0)**: Installs the ControlPlane Flux Operator and applies the `FluxInstance` via Terraform to establish the GitOps reconciliation loop.
+- **Flux Web UI (Day 1)**: Exposed via a static LoadBalancer IP (`192.168.100.202`) to monitor sync status, managed declaratively under GitOps.
+- **Cluster Monitoring & Kubelet Certificates (Day 1)**: Metrics Server and [kubelet-serving-cert-approver.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab/infrastructure/metrics-server/kubelet-serving-cert-approver.yaml) (which automatically approves node Kubelet certificates on Talos) are deployed via GitOps.
 
 ---
 
@@ -31,10 +31,8 @@ This repository contains the Terraform configurations to deploy, bootstrap, and 
 ### Infrastructure-as-Code (Terraform)
 All infrastructure-as-code files are located under the [iac/terraform/proxmox/](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox) directory:
 - **[main.tf](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/main.tf)**: Call to the local `modules/proxmox-talos` module to provision Proxmox VMs and initialize the Talos cluster.
-- **[cilium.tf](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/cilium.tf)**: Installs the Cilium Helm chart, configures L2 announcement policies, LoadBalancer IP pools, and purges flannel/kube-proxy.
-- **[local-storage.tf](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/local-storage.tf)**: Deploys Rancher Local Path Provisioner using the local Helm chart in `charts/local-path-provisioner`.
+- **[cilium.tf](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/cilium.tf)**: Bootstraps initial Cilium Helm release, default L2 announcement policies, and LoadBalancer IP pools on Day 0 (configured to ignore subsequent changes to allow GitOps lifecycle management).
 - **[flux.tf](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/flux.tf)**: Provisions the ControlPlane Flux Operator and bootstraps the `FluxInstance` CR pointing to the GitHub GitOps repository.
-- **[metrics-server.tf](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/metrics-server.tf)**: Installs Metrics Server and `kubelet-serving-cert-approver` for node/pod resource usage statistics.
 - **[outputs.tf](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/outputs.tf)**: Returns endpoints, node IPs, and configuration files.
 - **[variables.tf](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/variables.tf)** & **[terraform.tfvars](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/terraform.tfvars)**: Customizable parameters (VM size, node IPs, GitHub owner/repo, etc.).
 - **[scripts/](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/scripts)**:
@@ -45,18 +43,22 @@ All infrastructure-as-code files are located under the [iac/terraform/proxmox/](
 The GitOps configuration layout is located under the [gitops/](file:///Users/timi/lab-learn/k8s-tf-example/gitops) directory:
 - **[gitops/homelab/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab)**:
   - **`clusters/homelab-cluster/`**: Contains the bootstrapping configurations:
-    - **`flux-system/flux-instance.yaml`**: The **`FluxInstance`** custom resource configuration syncing from GitHub.
+    - **`flux-system/flux-instance.yaml`**: The **`FluxInstance`** custom resource configuration syncing from GitHub. See [flux-instance.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab/clusters/homelab-cluster/flux-system/flux-instance.yaml).
     - **`kustomization.yaml`**: Root Kustomization linking to all resources.
     - **`infrastructure.yaml`**: The Flux Kustomization linking to `./gitops/homelab/infrastructure`.
     - **`apps.yaml`**: The Flux Kustomization linking to `./gitops/homelab/apps` (depends on infrastructure).
-  - **`infrastructure/`**: Core infrastructure workloads (e.g. [flux-operator-web-lb.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab/infrastructure/flux-operator-web-lb.yaml) to expose the Flux Web UI).
+  - **`infrastructure/`**: Core infrastructure workloads:
+    - **[cilium/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab/infrastructure/cilium)**: Manages Cilium chart version updates, L2 Announcement policies, and LoadBalancer IP pools.
+    - **[local-path-provisioner/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab/infrastructure/local-path-provisioner)**: Deploys Rancher Local Path Provisioner using a local Helm chart.
+    - **[metrics-server/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab/infrastructure/metrics-server)**: Installs Metrics Server and [kubelet-serving-cert-approver.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab/infrastructure/metrics-server/kubelet-serving-cert-approver.yaml).
+    - **[flux-operator-web-lb.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab/infrastructure/flux-operator-web-lb.yaml)**: Exposes the Flux Web UI via a LoadBalancer service.
   - **`apps/`**: Placeholders for application workloads managed via GitOps.
 
 ---
 
 ## 🛠️ Prerequisites
 
-1. A running **Proxmox VE** instance (configured at `https://192.168.100.252:8006/` or customized in `terraform.tfvars`).
+1. A running **Proxmox VE** instance (configured at `https://192.168.100.252:8006/` or customized in [terraform.tfvars](file:///Users/timi/lab-learn/k8s-tf-example/iac/terraform/proxmox/terraform.tfvars)).
 2. **Talos Linux OS image** uploaded to Proxmox.
 3. **Terraform CLI**, **kubectl**, and **talosctl** installed locally.
 4. Credentials configured via environment variables (`PROXMOX_VE_USERNAME`, `PROXMOX_VE_PASSWORD`).
