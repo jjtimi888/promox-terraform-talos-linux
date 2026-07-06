@@ -35,3 +35,6 @@ talosconfig
 # SSH keys or certificates if any
 *.pem
 *.key
+
+# Temp files
+*kube_config*
