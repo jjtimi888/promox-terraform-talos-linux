@@ -3,3 +3,5 @@ kind: Kustomization
 resources:
   - flux-instance.yaml
   - flux-operator.yaml
+  - flux-operator-web-lb.yaml
+
