@@ -242,4 +242,21 @@ resource "null_resource" "flux_instance" {
       KUBECONFIG_CONTENT = self.triggers.kubeconfig
     }
   }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      echo "$KUBECONFIG_CONTENT" > flux_destroy_kubeconfig
+      export KUBECONFIG=flux_destroy_kubeconfig
+
+      echo "Deleting FluxInstance Custom Resource..."
+      kubectl delete fluxinstance flux -n flux-system --ignore-not-found=true --timeout=90s || true
+
+      rm flux_destroy_kubeconfig
+    EOT
+
+    environment = {
+      KUBECONFIG_CONTENT = self.triggers.kubeconfig
+    }
+  }
 }
