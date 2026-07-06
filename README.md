@@ -22,7 +22,7 @@ This repository contains the Terraform and GitOps configurations to deploy, boot
 - **Dynamic Local Storage (Day 1)**: Rancher Local Path Provisioner deployed via GitOps and configured at `/var/local-path-provisioner` (the persistent path on Talos Linux) as the default `local-path` StorageClass.
 - **Automated GitOps (Day 0)**: Installs the ControlPlane Flux Operator and applies the `FluxInstance` via Terraform to establish the GitOps reconciliation loop.
 - **Flux Web UI (Day 1)**: Exposed via a static LoadBalancer IP (`192.168.100.202`) to monitor sync status, managed declaratively under GitOps.
-- **Cluster Monitoring & Kubelet Certificates (Day 1)**: Metrics Server and [kubelet-serving-cert-approver.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab/infrastructure/metrics-server/kubelet-serving-cert-approver.yaml) (which automatically approves node Kubelet certificates on Talos) are deployed via GitOps.
+- **Cluster Monitoring & Kubelet Certificates (Day 1)**: Metrics Server and [kubelet-serving-cert-approver.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux/infrastructure/metrics-server/kubelet-serving-cert-approver.yaml) (which automatically approves node Kubelet certificates on Talos) are deployed via GitOps.
 
 ---
 
@@ -41,17 +41,17 @@ All infrastructure-as-code files are located under the [iac/terraform/proxmox/](
 
 ### GitOps Resources
 The GitOps configuration layout is located under the [gitops/](file:///Users/timi/lab-learn/k8s-tf-example/gitops) directory:
-- **[gitops/homelab/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab)**:
+- **[gitops/flux/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux)**:
   - **`clusters/homelab-cluster/`**: Contains the bootstrapping configurations:
-    - **`flux-system/flux-instance.yaml`**: The **`FluxInstance`** custom resource configuration syncing from GitHub. See [flux-instance.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab/clusters/homelab-cluster/flux-system/flux-instance.yaml).
+    - **`flux-system/flux-instance.yaml`**: The **`FluxInstance`** custom resource configuration syncing from GitHub. See [flux-instance.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux/clusters/homelab-cluster/flux-system/flux-instance.yaml).
     - **`kustomization.yaml`**: Root Kustomization linking to all resources.
-    - **`infrastructure.yaml`**: The Flux Kustomization linking to `./gitops/homelab/infrastructure`.
-    - **`apps.yaml`**: The Flux Kustomization linking to `./gitops/homelab/apps` (depends on infrastructure).
+    - **`infrastructure.yaml`**: The Flux Kustomization linking to `./gitops/flux/infrastructure`.
+    - **`apps.yaml`**: The Flux Kustomization linking to `./gitops/flux/apps` (depends on infrastructure).
   - **`infrastructure/`**: Core infrastructure workloads:
-    - **[cilium/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab/infrastructure/cilium)**: Manages Cilium chart version updates, L2 Announcement policies, and LoadBalancer IP pools.
-    - **[local-path-provisioner/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab/infrastructure/local-path-provisioner)**: Deploys Rancher Local Path Provisioner using a local Helm chart.
-    - **[metrics-server/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab/infrastructure/metrics-server)**: Installs Metrics Server and [kubelet-serving-cert-approver.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab/infrastructure/metrics-server/kubelet-serving-cert-approver.yaml).
-    - **[flux-operator-web-lb.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/homelab/infrastructure/flux-operator-web-lb.yaml)**: Exposes the Flux Web UI via a LoadBalancer service.
+    - **[cilium/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux/infrastructure/cilium)**: Manages Cilium chart version updates, L2 Announcement policies, and LoadBalancer IP pools.
+    - **[local-path-provisioner/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux/infrastructure/local-path-provisioner)**: Deploys Rancher Local Path Provisioner using a local Helm chart.
+    - **[metrics-server/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux/infrastructure/metrics-server)**: Installs Metrics Server and [kubelet-serving-cert-approver.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux/infrastructure/metrics-server/kubelet-serving-cert-approver.yaml).
+    - **[flux-operator-web-lb.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux/infrastructure/flux-operator-web-lb.yaml)**: Exposes the Flux Web UI via a LoadBalancer service.
   - **`apps/`**: Placeholders for application workloads managed via GitOps.
 
 ---
@@ -134,8 +134,8 @@ To deploy new applications or modify cluster settings:
    ```bash
    git clone https://github.com/<github_owner>/<github_repository>.git
    ```
-2. Place your Kubernetes manifests or Helm releases in `gitops/homelab/apps/` or `gitops/homelab/infrastructure/`.
-3. Reference them in the `kustomization.yaml` under `gitops/homelab/clusters/homelab-cluster/`.
+2. Place your Kubernetes manifests or Helm releases in `gitops/flux/apps/` or `gitops/flux/infrastructure/`.
+3. Reference them in the `kustomization.yaml` under `gitops/flux/clusters/homelab-cluster/`.
 4. Commit and push your changes. Flux will apply them within minutes automatically.
 
 ---

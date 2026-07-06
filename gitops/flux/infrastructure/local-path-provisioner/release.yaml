@@ -7,7 +7,7 @@ spec:
   interval: 1h
   chart:
     spec:
-      chart: ./gitops/homelab/infrastructure/local-path-provisioner/charts/local-path-provisioner
+      chart: ./gitops/flux/infrastructure/local-path-provisioner/charts/local-path-provisioner
       sourceRef:
         kind: GitRepository
         name: flux-system

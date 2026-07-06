@@ -7,7 +7,7 @@ spec:
   dependsOn:
     - name: infrastructure
   interval: 10m0s
-  path: ./gitops/homelab/apps
+  path: ./gitops/flux/apps
   prune: true
   sourceRef:
     kind: GitRepository

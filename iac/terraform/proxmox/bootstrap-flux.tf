@@ -35,7 +35,7 @@ resource "null_resource" "flux_instance" {
 
   triggers = {
     kubeconfig    = module.talos.kubeconfig
-    manifest_sha1 = sha1(file("${path.module}/../../../gitops/homelab/clusters/homelab-cluster/flux-system/flux-instance.yaml"))
+    manifest_sha1 = sha1(file("${path.module}/../../../gitops/flux/clusters/homelab-cluster/flux-system/flux-instance.yaml"))
   }
 
   provisioner "local-exec" {
@@ -44,7 +44,7 @@ resource "null_resource" "flux_instance" {
       export KUBECONFIG=flux_kubeconfig
 
       echo "Applying FluxInstance Custom Resource from GitOps manifests..."
-      kubectl apply -f ${path.module}/../../../gitops/homelab/clusters/homelab-cluster/flux-system/flux-instance.yaml
+      kubectl apply -f ${path.module}/../../../gitops/flux/clusters/homelab-cluster/flux-system/flux-instance.yaml
 
       rm flux_kubeconfig
     EOT

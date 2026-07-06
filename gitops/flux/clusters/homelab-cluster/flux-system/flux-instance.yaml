@@ -20,4 +20,4 @@ spec:
     kind: GitRepository
     url: "https://github.com/jjtimi888/promox-terraform-talos-linux.git"
     ref: "refs/heads/main"
-    path: "./gitops/homelab/clusters/homelab-cluster"
+    path: "./gitops/flux/clusters/homelab-cluster"
