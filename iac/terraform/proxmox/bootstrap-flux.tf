@@ -54,5 +54,25 @@ resource "null_resource" "flux_instance" {
     }
   }
 
+  # Clean up during destroy to prevent the namespace from getting stuck due to finalizers
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      echo "$KUBECONFIG_CONTENT" > flux_kubeconfig_destroy
+      export KUBECONFIG=flux_kubeconfig_destroy
+
+      echo "Deleting FluxInstance Custom Resource..."
+      kubectl delete fluxinstances.fluxcd.controlplane.io flux -n flux-system --ignore-not-found=true --timeout=15s || true
+
+      echo "Stripping finalizers from remaining Flux custom resources to prevent hanging namespace deletion..."
+      kubectl get gitrepositories.source.toolkit.fluxcd.io,kustomizations.kustomize.toolkit.fluxcd.io,helmreleases.helm.toolkit.fluxcd.io,helmcharts.source.toolkit.fluxcd.io,fluxinstances.fluxcd.controlplane.io -n flux-system -o name 2>/dev/null | xargs -I {} kubectl patch {} -n flux-system --type merge -p '{"metadata":{"finalizers":null}}' 2>/dev/null || true
+
+      rm flux_kubeconfig_destroy
+    EOT
+
+    environment = {
+      KUBECONFIG_CONTENT = self.triggers.kubeconfig
+    }
+  }
 }
 
