@@ -66,6 +66,7 @@ resource "kubectl_manifest" "gateway_api_crds" {
   for_each          = data.kubectl_file_documents.gateway_api_crds.manifests
   yaml_body         = each.value
   server_side_apply = true
+  force_conflicts   = true
 
   depends_on = [null_resource.wait_for_k8s_api]
 }
