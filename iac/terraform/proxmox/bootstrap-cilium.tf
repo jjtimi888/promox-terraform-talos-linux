@@ -54,8 +54,22 @@ provider "kubectl" {
   load_config_file       = false
 }
 
-resource "helm_release" "cilium" {
+data "kubectl_file_documents" "gateway_api_crds" {
+  content = file("${path.module}/manifests/gateway-api-crds.yaml")
+}
+
+resource "kubectl_manifest" "gateway_api_crds" {
+  for_each  = data.kubectl_file_documents.gateway_api_crds.manifests
+  yaml_body = each.value
+
   depends_on = [null_resource.wait_for_k8s_api]
+}
+
+resource "helm_release" "cilium" {
+  depends_on = [
+    null_resource.wait_for_k8s_api,
+    kubectl_manifest.gateway_api_crds
+  ]
   name       = "cilium"
   repository = "https://helm.cilium.io/"
   chart      = "cilium"
@@ -98,6 +112,9 @@ resource "helm_release" "cilium" {
       enabled: true
 
     l2announcements:
+      enabled: true
+
+    gatewayAPI:
       enabled: true
 
     EOT

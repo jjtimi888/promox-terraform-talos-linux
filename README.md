@@ -17,7 +17,7 @@ This repository contains the Terraform and GitOps configurations to deploy, boot
 
 - **Declarative Infrastructure (Day 0)**: VM provisioning on Proxmox and Talos cluster bootstrap fully managed by Terraform using the `bpg/proxmox` and `siderolabs/talos` providers.
 - **Talos Linux Node OS (Day 0)**: Security-hardened, minimal, immutable, and ephemeral Kubernetes node OS.
-- **Cilium CNI (Day 0 / Day 1)**: Bootstrapped initially via Terraform (Day 0) to provide essential cluster networking, and subsequently updated and managed (including L2 Announcements and LoadBalancer IP pools `192.168.100.200 - 192.168.100.240`) via GitOps (Day 1).
+- **Cilium CNI (Day 0 / Day 1)**: Bootstrapped initially via Terraform (Day 0) to provide essential cluster networking, and subsequently updated and managed (including L2 Announcements, LoadBalancer IP pools `192.168.100.200 - 192.168.100.240`, and **Kubernetes Gateway API**) via GitOps (Day 1).
 - **Hubble Observability (Day 1)**: Real-time network visibility and flow logging with Hubble UI and Relay, managed via the Cilium Helm Release in GitOps.
 - **Dynamic Local Storage (Day 1)**: Rancher Local Path Provisioner deployed via GitOps and configured at `/var/local-path-provisioner` (the persistent path on Talos Linux) as the default `local-path` StorageClass.
 - **Automated GitOps (Day 0)**: Installs the ControlPlane Flux Operator and applies the `FluxInstance` via Terraform to establish the GitOps reconciliation loop.
@@ -49,7 +49,8 @@ The GitOps configuration layout is located under the [gitops/](file:///Users/tim
     - **`apps.yaml`**: The Flux Kustomization linking to `./gitops/flux/apps` (depends on infrastructure).
   - **`infrastructure/`**: Core infrastructure workloads organized as Kustomize Base and Overlays:
     - **`base/`**: Shared infrastructure workloads:
-      - **[cilium/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux/infrastructure/base/cilium)**: Manages Cilium Helm release updates.
+      - **`gateway-api/`**: Installs Gateway API CRDs.
+      - **[cilium/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux/infrastructure/base/cilium)**: Manages Cilium Helm release updates (with Gateway API enabled).
       - **[local-path-provisioner/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux/infrastructure/base/local-path-provisioner)**: Deploys Rancher Local Path Provisioner using a local Helm chart.
       - **[metrics-server/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux/infrastructure/base/metrics-server)**: Installs Metrics Server and [kubelet-serving-cert-approver.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux/infrastructure/base/metrics-server/kubelet-serving-cert-approver.yaml).
     - **`overlays/`**: Cluster-specific configurations:

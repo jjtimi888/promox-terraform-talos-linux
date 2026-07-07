@@ -51,3 +51,5 @@ spec:
       enabled: true
     l2announcements:
       enabled: true
+    gatewayAPI:
+      enabled: true
