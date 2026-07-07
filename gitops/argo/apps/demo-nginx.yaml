@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: 'https://github.com/jjtimi888/promox-terraform-talos-linux.git'
     targetRevision: main
-    path: gitops/argo/apps/demo-nginx
+    path: gitops/argo/manifests/demo-nginx
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: demo-nginx

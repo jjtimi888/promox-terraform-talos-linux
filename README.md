@@ -41,7 +41,7 @@ All infrastructure-as-code files are located under the [iac/terraform/proxmox/](
 
 ### GitOps Resources
 The GitOps configuration layout is located under the [gitops/](file:///Users/timi/lab-learn/k8s-tf-example/gitops) directory:
-- **[gitops/flux/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux)**:
+- **[gitops/flux/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux)** (Flux CD): Manages cluster bootstrap and core infrastructure workloads.
   - **`clusters/homelab-cluster/`**: Contains the bootstrapping configurations:
     - **`flux-system/flux-instance.yaml`**: The **`FluxInstance`** custom resource configuration syncing from GitHub. See [flux-instance.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux/clusters/homelab-cluster/flux-system/flux-instance.yaml).
     - **`kustomization.yaml`**: Root Kustomization linking to all resources.
@@ -56,7 +56,10 @@ The GitOps configuration layout is located under the [gitops/](file:///Users/tim
     - **`overlays/`**: Cluster-specific configurations:
       - **`homelab-cluster/`**: Applies `base/` and adds homelab-specific L2 Policies and IP Pools.
       - **`prod-cluster/`**: Acts as a template for production cluster deployment.
-  - **`apps/`**: Placeholders for application workloads managed via GitOps.
+  - **`apps/`**: Applications bootstrapped by Flux CD (e.g., [argo-root.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/flux/apps/argo-root.yaml) which boots Argo CD).
+- **[gitops/argo/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/argo)** (Argo CD): Manages end-user application workloads.
+  - **`apps/`**: Contains Argo CD `Application` custom resource definitions (e.g., [demo-nginx.yaml](file:///Users/timi/lab-learn/k8s-tf-example/gitops/argo/apps/demo-nginx.yaml)).
+  - **`manifests/`**: Contains the Kubernetes manifests for the corresponding applications (e.g., [demo-nginx/](file:///Users/timi/lab-learn/k8s-tf-example/gitops/argo/manifests/demo-nginx) containing Deployment, Service, and Kustomize setups).
 
 ---
 
