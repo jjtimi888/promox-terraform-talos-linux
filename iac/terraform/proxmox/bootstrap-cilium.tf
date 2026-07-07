@@ -54,13 +54,18 @@ provider "kubectl" {
   load_config_file       = false
 }
 
+data "http" "gateway_api_crds" {
+  url = "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.0/experimental-install.yaml"
+}
+
 data "kubectl_file_documents" "gateway_api_crds" {
-  content = file("${path.module}/manifests/gateway-api-crds.yaml")
+  content = data.http.gateway_api_crds.response_body
 }
 
 resource "kubectl_manifest" "gateway_api_crds" {
-  for_each  = data.kubectl_file_documents.gateway_api_crds.manifests
-  yaml_body = each.value
+  for_each          = data.kubectl_file_documents.gateway_api_crds.manifests
+  yaml_body         = each.value
+  server_side_apply = true
 
   depends_on = [null_resource.wait_for_k8s_api]
 }
